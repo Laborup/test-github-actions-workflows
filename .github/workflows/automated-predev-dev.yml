@@ -8,11 +8,16 @@ jobs:
   create-and-merge-pr:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: pre_dev
+
       - name: Create Pull Request
         id: create-pr
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: Automated update
           title: Automated update
           body: This is an automated PR created by the scheduled workflow.
