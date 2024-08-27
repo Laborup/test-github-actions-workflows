@@ -1,0 +1,88 @@
+name: Automated pre_dev to dev
+
+on:
+  schedule:
+    - cron: "0 23 * * *"
+
+jobs:
+  create-and-merge-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Create Pull Request
+        id: create-pr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: Automated update
+          title: Automated update
+          body: This is an automated PR created by the scheduled workflow.
+          branch: pre_dev
+          base: dev
+          labels: |
+            automated pr
+
+      - name: Wait for branch protection checks
+        uses: actions/github-script@v6
+        if: steps.create-pr.outputs.pull-request-number
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = ${{ steps.create-pr.outputs.pull-request-number }};
+            const startTime = Date.now();
+            const maxWaitTime = 15 * 60 * 1000; // 15 minutes in milliseconds
+
+            while (Date.now() - startTime < maxWaitTime) {
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+              });
+
+              if (pr.mergeable_state === 'clean') {
+                console.log('Branch protection requirements met. Proceeding to merge.');
+                return 'success';
+              }
+
+              console.log('Waiting for branch protection checks to pass...');
+              await new Promise(resolve => setTimeout(resolve, 60000)); // Wait for 60 seconds
+            }
+
+            console.log('Timeout reached. Branch protection requirements not met.');
+            return 'timeout';
+
+      - name: Merge Pull Request
+        if: steps.wait-for-checks.outputs.result == 'success'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = ${{ steps.create-pr.outputs.pull-request-number }};
+            await github.rest.pulls.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              merge_method: 'merge'
+            });
+
+      - name: Close Pull Request
+        if: steps.wait-for-checks.outputs.result == 'timeout'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = ${{ steps.create-pr.outputs.pull-request-number }};
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: 'Closing this PR as checks did not pass within 15 minutes.'
+            });
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              state: 'closed'
+            });
