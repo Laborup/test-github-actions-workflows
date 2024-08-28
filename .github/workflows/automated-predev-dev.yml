@@ -9,20 +9,34 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
-    - name: create pull request
-      run: gh pr create -B dev -H pre_dev --title 'Merge pre_dev into dev' --body 'Created by Github action'
+
+    - name: Compare Branches
+      id: check-diff
+      run: |
+        git fetch origin dev pre_dev
+        DIFF=$(git diff --shortstat origin/dev origin/pre_dev)
+        echo "DIFF=$DIFF" >> $GITHUB_ENV
+
+    - name: Create Pull Request (if branches differ)
+      if: env.DIFF != ''
+      run: gh pr create -B dev -H pre_dev --title "Merge pre_dev into dev" --body "Created by GitHub action"
       env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Get Pull Request Number
+      if: env.DIFF != ''
       id: get-pr
       run: |
         PR_NUMBER=$(gh pr list --head pre_dev --json number --jq '.[0].number')
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
-      env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Auto-merge Pull Request
+      if: env.DIFF != ''
       run: gh pr merge ${{ env.PR_NUMBER }} --auto --merge
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Notify No PR Needed
+      if: env.DIFF == ''
+      run: echo "Branches are identical. No PR created."
+
