@@ -2,7 +2,7 @@ name: Automated pre_dev to dev
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: '*/5 * * * *'
 
 jobs:
   create-and-merge-pr:
