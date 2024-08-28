@@ -19,6 +19,8 @@ jobs:
       run: |
         PR_NUMBER=$(gh pr list --head pre_dev --json number --jq '.[0].number')
         echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Auto-merge Pull Request
       run: gh pr merge ${{ env.PR_NUMBER }} --auto --merge
