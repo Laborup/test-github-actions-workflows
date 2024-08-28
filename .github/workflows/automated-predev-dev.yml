@@ -7,6 +7,8 @@ jobs:
   create-pull-request:
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
     - name: create pull request
       run: gh pr create -B dev -H pre_dev --title 'Merge pre_dev into dev' --body 'Created by Github action'
       env:
