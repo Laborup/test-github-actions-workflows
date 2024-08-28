@@ -1,8 +1,7 @@
 name: Automated pre_dev to dev
 
 on:
-  schedule:
-    - cron: '17 1 * * *'
+  workflow_dispatch
 
 jobs:
   create-and-merge-pr:
